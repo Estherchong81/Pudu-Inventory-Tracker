@@ -3350,10 +3350,10 @@ Answer concisely and helpfully. Use bullet points when listing items. Focus on a
         })
       });
       const data = await res.json();
-      const reply = data?.choices?.[0]?.message?.content || "Sorry, I couldn't get a response. Check your GROQ API key in Vercel environment variables.";
+      const reply = data?.choices?.[0]?.message?.content || "Sorry, I couldn't get a response. Check your GROQ API key in environment variables.";
       setMessages(prev => [...prev, { role:"assistant", content:reply }]);
     } catch(err) {
-      setMessages(prev => [...prev, { role:"assistant", content:"Connection error. Ensure GROQ_API_KEY is set in your Vercel environment variables and the app is deployed." }]);
+      setMessages(prev => [...prev, { role:"assistant", content:"Connection error. Please try again later or contact your administrator." }]);
     }
     setLoading(false);
   }
@@ -3378,7 +3378,7 @@ Answer concisely and helpfully. Use bullet points when listing items. Focus on a
             <span style={{ fontSize:20 }}>🤖</span>
             <div style={{ flex:1 }}>
               <div style={{ color:"#fff", fontWeight:700, fontSize:14 }}>Fleet AI</div>
-              <div style={{ color:"#C8EEF5", fontSize:11 }}>Powered by GROQ — ask anything about your fleet</div>
+              <div style={{ color:"#C8EEF5", fontSize:11 }}>AI Assistant — ask anything about your fleet</div>
             </div>
             <button onClick={()=>setOpen(false)} style={{ background:"transparent", border:"none", color:"#C8EEF5", fontSize:18, cursor:"pointer" }}>✕</button>
           </div>
@@ -3556,7 +3556,7 @@ function VersionHistory() {
 
       {/* How to use this tab */}
       <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 8, padding: "12px 16px", fontSize: 12, color: "#0369a1" }}>
-        <strong>How to use:</strong> Every time you update the app via Claude and re-upload to GitHub, come here and click "+ Log New Version" to record what changed, when, and who requested it. This creates a permanent audit trail for IT and management.
+        <strong>How to use:</strong> After each app update, click "+ Log New Version" to record what changed, when, and who requested it. This creates a permanent audit trail for IT and management.
       </div>
 
       {/* Version Cards */}
