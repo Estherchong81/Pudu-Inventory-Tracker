@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import * as XLSX from "xlsx";
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -3297,9 +3297,9 @@ function AIChatBox({ movements, personnel, fleetUnits, lockedMonths }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
-  const bottomRef = React.useRef(null);
+  const bottomRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (open && bottomRef.current) bottomRef.current.scrollIntoView({ behavior:"smooth" });
   }, [messages, open]);
 
