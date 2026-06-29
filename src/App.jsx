@@ -488,7 +488,7 @@ function getMovLabel2(typeValue, setup) {
 
 
 // ─── PENDING APPROVALS ────────────────────────────────────────────────────────
-function PendingApprovals({ pendingItems, setPendingItems, movements, setMovements }) {
+function PendingApprovals({ pendingItems, setPendingItems, movements, setMovements, itemMaster, customers, personnel }) {
   const [filter, setFilter] = useState("pending");
   const [rejectReason, setRejectReason] = useState("");
   const [rejectingId, setRejectingId] = useState(null);
@@ -716,7 +716,7 @@ function StatCard({ label, value, sub, accent, onClick }) {
 }
 
 // ─── STOCK POSITION (NEW MAIN TAB) ───────────────────────────────────────────
-function StockPosition({ movements, sapSnapshots, gitItems }) {
+function StockPosition({ movements, sapSnapshots, gitItems, itemMaster, customers }) {
   const [selMonth, setSelMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selItem, setSelItem] = useState("ALL");
 
@@ -852,7 +852,7 @@ function StockPosition({ movements, sapSnapshots, gitItems }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ movements, personnel }) {
+function Dashboard({ movements, personnel, itemMaster, customers }) {
   const now = new Date();
   const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const monthMov = movements.filter(m => m.date?.startsWith(thisMonth));
@@ -1248,7 +1248,7 @@ function LogMovement({ movements, setMovements, personnel, lockedMonths, fleetUn
 }
 
 // ─── MOVEMENT LOG ─────────────────────────────────────────────────────────────
-function MovementLog({ movements, setMovements, lockedMonths }) {
+function MovementLog({ movements, setMovements, lockedMonths, itemMaster, customers }) {
   const [fDir, setFDir] = useState("ALL"), [fType, setFType] = useState("ALL"), [fSapCat, setFSapCat] = useState("ALL"), [fMonth, setFMonth] = useState(""), [search, setSearch] = useState("");
 
   // Check if a movement's month is locked
@@ -1389,7 +1389,7 @@ function MovementLog({ movements, setMovements, lockedMonths }) {
     </div>
   );
 }
-function GITRegister({ gitItems, setGitItems }) {
+function GITRegister({ gitItems, setGitItems, itemMaster }) {
   const blank = { poNo: "", itemId: "", qty: 1, supplier: "", shipDate: "", etaDate: "", vesselRef: "", status: "On Order", notes: "" };
   const [form, setForm] = useState(blank);
   const [adding, setAdding] = useState(false);
@@ -2210,7 +2210,7 @@ function SapImport({ sapSnapshots, setSapSnapshots, gitItems, setGitItems }) {
 
 
 // EXPORT EXCEL
-function ExportExcel({ movements, personnel, sapSnapshots, gitItems }) {
+function ExportExcel({ movements, personnel, sapSnapshots, gitItems, itemMaster, customers }) {
   const [filters, setFilters] = useState({ dateFrom:"",dateTo:"",direction:"ALL",movType:"ALL",region:"ALL",custodian:"ALL",status:"ALL",itemCategory:"ALL",sapCat:"ALL" });
   const [exported, setExported] = useState(false);
   function setF(k,v){setFilters(f=>({...f,[k]:v}));}
@@ -3840,18 +3840,18 @@ export default function App(){
 
         {/* Tab content */}
         <div style={{ padding:"24px",flex:1 }}>
-          {activeTab==="Stock Position"    && <StockPosition movements={movements} sapSnapshots={sapSnapshots} gitItems={gitItems} />}
+          {activeTab==="Stock Position"    && <StockPosition movements={movements} sapSnapshots={sapSnapshots} gitItems={gitItems} itemMaster={itemMaster} customers={customers} />}
           {activeTab==="Fleet Calendar"    && <FleetCalendar movements={movements} fleetUnits={fleetUnits} setFleetUnits={setFleetUnits} />}
-          {activeTab==="Dashboard"         && <Dashboard movements={movements} personnel={personnel} />}
+          {activeTab==="Dashboard"         && <Dashboard movements={movements} personnel={personnel} itemMaster={itemMaster} customers={customers} />}
           {activeTab==="Log Movement"      && <LogMovement movements={movements} setMovements={setMovements} personnel={personnel} lockedMonths={lockedMonths} setup={cfg} fleetUnits={fleetUnits} setFleetUnits={setFleetUnits} itemMaster={itemMaster} customers={customers} readOnly={!canEdit("Log Movement")} />}
-          {activeTab==="Movement Log"      && <MovementLog movements={movements} setMovements={setMovements} lockedMonths={lockedMonths} readOnly={!canEdit("Movement Log")} />}
-          {activeTab==="GIT Register"      && <GITRegister gitItems={gitItems} setGitItems={setGitItems} readOnly={!canEdit("GIT Register")} />}
-          {activeTab==="Pending Approvals" && <PendingApprovals pendingItems={pendingItems} setPendingItems={setPendingItems} movements={movements} setMovements={setMovements} />}
+          {activeTab==="Movement Log"      && <MovementLog movements={movements} setMovements={setMovements} lockedMonths={lockedMonths} itemMaster={itemMaster} customers={customers} readOnly={!canEdit("Movement Log")} />}
+          {activeTab==="GIT Register"      && <GITRegister gitItems={gitItems} setGitItems={setGitItems} itemMaster={itemMaster} readOnly={!canEdit("GIT Register")} />}
+          {activeTab==="Pending Approvals" && <PendingApprovals pendingItems={pendingItems} setPendingItems={setPendingItems} movements={movements} setMovements={setMovements} itemMaster={itemMaster} customers={customers} personnel={personnel} />}
           {activeTab==="Admin"             && <Admin movements={movements} setMovements={setMovements} personnel={personnel} setPersonnel={setPersonnel} sapSnapshots={sapSnapshots} setSapSnapshots={setSapSnapshots} lockedMonths={lockedMonths} setLockedMonths={setLockedMonths} setup={cfg} setSetup={setSetup} currentUser={currentUser} itemMaster={itemMaster} setItemMaster={setItemMaster} customers={customers} setCustomers={setCustomers} fleetUnits={fleetUnits} setFleetUnits={setFleetUnits} versions={versions} setVersions={setVersions} gitItems={gitItems} setGitItems={setGitItems} />}
           {activeTab==="Setup"             && <Setup setup={cfg} setSetup={setSetup} appUsers={appUsers} setAppUsers={setAppUsers} itemMaster={itemMaster} setItemMaster={setItemMaster} customers={customers} setCustomers={setCustomers} />}
           {activeTab==="Import SAP"        && <SapImport sapSnapshots={sapSnapshots} setSapSnapshots={setSapSnapshots} gitItems={gitItems} setGitItems={setGitItems} />}
           {activeTab==="Backup & Restore"  && <Admin movements={movements} setMovements={setMovements} personnel={personnel} setPersonnel={setPersonnel} sapSnapshots={sapSnapshots} setSapSnapshots={setSapSnapshots} lockedMonths={lockedMonths} setLockedMonths={setLockedMonths} setup={cfg} setSetup={setSetup} currentUser={currentUser} itemMaster={itemMaster} setItemMaster={setItemMaster} customers={customers} setCustomers={setCustomers} fleetUnits={fleetUnits} setFleetUnits={setFleetUnits} versions={versions} setVersions={setVersions} gitItems={gitItems} setGitItems={setGitItems} />}
-          {activeTab==="Export Excel"      && <ExportExcel movements={movements} personnel={personnel} sapSnapshots={sapSnapshots} gitItems={gitItems} />}
+          {activeTab==="Export Excel"      && <ExportExcel movements={movements} personnel={personnel} sapSnapshots={sapSnapshots} gitItems={gitItems} itemMaster={itemMaster} customers={customers} />}
           {activeTab==="User Guide"        && <UserGuide />}
           {activeTab==="Version History"   && <VersionHistory />}
         </div>
