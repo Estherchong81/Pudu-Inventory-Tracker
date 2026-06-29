@@ -1520,425 +1520,148 @@ function Admin({ movements, setMovements, personnel, setPersonnel, sapSnapshots,
 
   const [tab, setTab] = useState("staff");
   const s = setup || DEFAULT_SETUP;
-  const isSuperAdmin = currentUser?.role === "Super Admin";
+  const isSuperAdmin = currentUser && currentUser.role === "Super Admin";
 
-  // ── STAFF MASTER ──────────────────────────────────────────────────────────
-  function StaffTab() {
-    const blankP = { name:"", role:"", entity:"", region:"", email:"", phone:"", active:true };
-    const [newP, setNewP] = useState(blankP);
-    const [editId, setEditId] = useState(null);
-    const [editData, setEditData] = useState({});
-    const [search, setSearch] = useState("");
-    const filtered = personnel.filter(p =>
-      !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.role||"").toLowerCase().includes(search.toLowerCase()) ||
-      (p.entity||"").toLowerCase().includes(search.toLowerCase())
-    );
-    async function addStaff() {
-      if (!newP.name.trim()) { alert("Name is required."); return; }
-      const updated = [...personnel, { ...newP, id: Date.now() }];
-      setPersonnel(updated); await save(SK.PERS, updated); setNewP(blankP);
-    }
-    async function saveEdit(id) {
-      const updated = personnel.map(p => p.id === id ? { ...p, ...editData } : p);
-      setPersonnel(updated); await save(SK.PERS, updated); setEditId(null);
-    }
-    async function toggleActive(id) {
-      const updated = personnel.map(p => p.id === id ? { ...p, active: !p.active } : p);
-      setPersonnel(updated); await save(SK.PERS, updated);
-    }
-    async function removePerson(id) {
-      if (!appConfirm("Remove this staff member?")) return;
-      const updated = personnel.filter(p => p.id !== id);
-      setPersonnel(updated); await save(SK.PERS, updated);
-    }
-    const roles   = s.roles   || DEFAULT_SETUP.roles   || [];
-    const entities= s.entities|| DEFAULT_SETUP.entities|| [];
-    const regions = s.regions || DEFAULT_SETUP.regions || [];
+  // Staff state
+  const blankP = { name:"", role:"", entity:"", region:"", email:"", phone:"", active:true };
+  const [newP, setNewP] = useState(blankP);
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [staffSearch, setStaffSearch] = useState("");
 
-    function RoleSelect({ value, onChange }) {
-      return (
-        <select value={value||""} onChange={e=>onChange(e.target.value)} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }}>
-          <option value="">— Role —</option>
-          {roles.map(r=><option key={r} value={r}>{r}</option>)}
-        </select>
-      );
-    }
-    function EntitySelect({ value, onChange }) {
-      return (
-        <select value={value||""} onChange={e=>onChange(e.target.value)} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }}>
-          <option value="">— Entity —</option>
-          {entities.map(e=><option key={e} value={e}>{e}</option>)}
-        </select>
-      );
-    }
-    function RegionSelect({ value, onChange }) {
-      return (
-        <select value={value||""} onChange={e=>onChange(e.target.value)} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }}>
-          <option value="">— Region —</option>
-          {regions.map(r=><option key={r} value={r}>{r}</option>)}
-        </select>
-      );
-    }
+  // Lists state
+  const SEP = "\n";
+  const [listDrafts, setListDrafts] = useState({
+    entities: (s.entities || DEFAULT_SETUP.entities || []).join("\n"),
+    regions:  (s.regions  || DEFAULT_SETUP.regions  || []).join("\n"),
+    roles:    (s.roles    || DEFAULT_SETUP.roles    || []).join("\n"),
+    remarks:  (s.remarks  || DEFAULT_SETUP.remarks  || []).join("\n"),
+  });
+  const [savedListKey, setSavedListKey] = useState("");
 
-    return (
-      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
-          <SectionHead title="Add Staff Member" />
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:10, marginBottom:12 }}>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Full Name *</label>
-              <input value={newP.name} onChange={e=>setNewP(p=>({...p,name:e.target.value}))} placeholder="e.g. Ahmad Faisal" style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Role</label>
-              <RoleSelect value={newP.role} onChange={v=>setNewP(p=>({...p,role:v}))} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Entity</label>
-              <EntitySelect value={newP.entity} onChange={v=>setNewP(p=>({...p,entity:v}))} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Region</label>
-              <RegionSelect value={newP.region} onChange={v=>setNewP(p=>({...p,region:v}))} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Email</label>
-              <input type="email" value={newP.email} onChange={e=>setNewP(p=>({...p,email:e.target.value}))} placeholder="name@company.com" style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Phone</label>
-              <input value={newP.phone||""} onChange={e=>setNewP(p=>({...p,phone:e.target.value}))} placeholder="+60 12-345 6789" style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-            </div>
-          </div>
-          <button onClick={addStaff} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-            + Add Staff
-          </button>
-        </div>
+  // SAP state
+  const [snapForm, setSnapForm] = useState({ month: new Date().toISOString().slice(0,7), itemId:"", sapStock:0, sapGit:0, sapDemo:0 });
 
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, overflow:"hidden" }}>
-          <div style={{ padding:"10px 14px", borderBottom:"1px solid #f3f4f6", display:"flex", gap:10, alignItems:"center" }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, role, entity..." style={{ flex:1, border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-            <span style={{ fontSize:12, color:"#9ca3af", whiteSpace:"nowrap" }}>{filtered.length} / {personnel.length}</span>
-          </div>
-          <div style={{ overflowX:"auto" }}>
-            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:700 }}>
-              <thead style={{ background:"#0D1B3E" }}>
-                <tr>{["Name","Role","Entity","Region","Email","Phone","Status",""].map(h=><th key={h} style={{ padding:"9px 12px", textAlign:"left", color:"#C8EEF5", fontWeight:600, fontSize:11, whiteSpace:"nowrap" }}>{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {filtered.length===0 && <tr><td colSpan={8} style={{ padding:28, textAlign:"center", color:"#9ca3af" }}>No staff yet. Add using the form above.</td></tr>}
-                {filtered.map(p=>(
-                  <tr key={p.id} style={{ borderTop:"1px solid #f3f4f6", background:p.active===false?"#fafafa":"#fff" }}>
-                    {editId===p.id ? (
-                      <>
-                        <td style={{ padding:"6px 8px" }}><input value={editData.name??p.name} onChange={e=>setEditData(d=>({...d,name:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
-                        <td style={{ padding:"6px 8px" }}><RoleSelect value={editData.role??p.role} onChange={v=>setEditData(d=>({...d,role:v}))} /></td>
-                        <td style={{ padding:"6px 8px" }}><EntitySelect value={editData.entity??p.entity} onChange={v=>setEditData(d=>({...d,entity:v}))} /></td>
-                        <td style={{ padding:"6px 8px" }}><RegionSelect value={editData.region??p.region} onChange={v=>setEditData(d=>({...d,region:v}))} /></td>
-                        <td style={{ padding:"6px 8px" }}><input type="email" value={editData.email??p.email??""} onChange={e=>setEditData(d=>({...d,email:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
-                        <td style={{ padding:"6px 8px" }}><input value={editData.phone??p.phone??""} onChange={e=>setEditData(d=>({...d,phone:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
-                        <td style={{ padding:"6px 8px" }}><Badge label={p.active===false?"Inactive":"Active"} bg={p.active===false?"#9ca3af":"#16a34a"} /></td>
-                        <td style={{ padding:"6px 8px" }}>
-                          <div style={{ display:"flex", gap:4 }}>
-                            <button onClick={()=>saveEdit(p.id)} style={{ background:"#16a34a", color:"#fff", border:"none", borderRadius:4, padding:"4px 10px", fontSize:12, cursor:"pointer", fontWeight:600 }}>Save</button>
-                            <button onClick={()=>setEditId(null)} style={{ background:"#f3f4f6", color:"#374151", border:"none", borderRadius:4, padding:"4px 8px", fontSize:12, cursor:"pointer" }}>Cancel</button>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td style={{ padding:"8px 12px", fontWeight:600, color:p.active===false?"#9ca3af":"#0D1B3E" }}>{p.name}</td>
-                        <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.role||"—"}</td>
-                        <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.entity||"—"}</td>
-                        <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.region||"—"}</td>
-                        <td style={{ padding:"8px 12px", color:"#6b7280", fontSize:11 }}>{p.email||"—"}</td>
-                        <td style={{ padding:"8px 12px", color:"#6b7280", fontSize:11 }}>{p.phone||"—"}</td>
-                        <td style={{ padding:"8px 12px" }}><Badge label={p.active===false?"Inactive":"Active"} bg={p.active===false?"#9ca3af":"#16a34a"} /></td>
-                        <td style={{ padding:"8px 12px" }}>
-                          <div style={{ display:"flex", gap:4 }}>
-                            <button onClick={()=>{ setEditId(p.id); setEditData({...p}); }} style={{ background:"#f0f9ff", color:"#0369a1", border:"1px solid #bae6fd", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
-                            <button onClick={()=>toggleActive(p.id)} style={{ background:p.active===false?"#dcfce7":"#fff7ed", color:p.active===false?"#16a34a":"#d97706", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>{p.active===false?"Activate":"Deactivate"}</button>
-                            <button onClick={()=>removePerson(p.id)} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Remove</button>
-                          </div>
-                        </td>
-                      </>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    );
+  // Backup state
+  const [backupDone, setBackupDone] = useState(false);
+  const [restoreStatus, setRestoreStatus] = useState("idle");
+  const [restorePreview, setRestorePreview] = useState(null);
+  const [restoreError, setRestoreError] = useState("");
+
+  const roles    = s.roles    || DEFAULT_SETUP.roles    || [];
+  const entities = s.entities || DEFAULT_SETUP.entities || [];
+  const regions  = s.regions  || DEFAULT_SETUP.regions  || [];
+  const remarks  = s.remarks  || DEFAULT_SETUP.remarks  || [];
+
+  const filteredStaff = personnel.filter(p =>
+    !staffSearch ||
+    p.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
+    (p.role||"").toLowerCase().includes(staffSearch.toLowerCase()) ||
+    (p.entity||"").toLowerCase().includes(staffSearch.toLowerCase())
+  );
+
+  const SEL = { width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 };
+
+  // Staff actions
+  async function addStaff() {
+    if (!newP.name.trim()) { alert("Name is required."); return; }
+    const updated = [...personnel, { ...newP, id: Date.now() }];
+    setPersonnel(updated); await save(SK.PERS, updated); setNewP(blankP);
+  }
+  async function saveEdit(id) {
+    const updated = personnel.map(p => p.id === id ? { ...p, ...editData } : p);
+    setPersonnel(updated); await save(SK.PERS, updated); setEditId(null);
+  }
+  async function toggleActive(id) {
+    const updated = personnel.map(p => p.id === id ? { ...p, active: !p.active } : p);
+    setPersonnel(updated); await save(SK.PERS, updated);
+  }
+  async function removePerson(id) {
+    if (!appConfirm("Remove this staff member?")) return;
+    const updated = personnel.filter(p => p.id !== id);
+    setPersonnel(updated); await save(SK.PERS, updated);
   }
 
-  // ── DROPDOWN LISTS (Entities, Regions, Remarks, Roles) ────────────────────
-  function ListsTab() {
-    const SEP = "\n";
-    const lists = [
-      { key:"entities", label:"Entities / Divisions",    ph:"TMK\nTMS\nSubsidiary A" },
-      { key:"regions",  label:"Regions / Offices",       ph:"Head Office\nBranch Office\nWarehouse" },
-      { key:"roles",    label:"Staff Roles",             ph:"Sales Personnel\nEngineer\nMarketing\nLogistics Admin" },
-      { key:"remarks",  label:"Remarks / Status Labels", ph:"KL Demo\nPEN Demo\nPOC\nExhibition\nLoan" },
-    ];
-    const [drafts, setDrafts] = useState(() => {
-      const d = {};
-      lists.forEach(l => { d[l.key] = ((s[l.key]) || (DEFAULT_SETUP[l.key]||[])).join(SEP); });
-      return d;
-    });
-    const [savedKey, setSavedKey] = useState("");
-
-    function saveList(key) {
-      const values = drafts[key].split(SEP).map(x=>x.trim()).filter(Boolean);
-      const updated = { ...s, [key]: values };
-      setSetup(updated); save(SK.SETUP, updated);
-      setSavedKey(key); setTimeout(()=>setSavedKey(""), 2000);
-    }
-
-    return (
-      <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-        <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#0369a1" }}>
-          These lists power all dropdowns across the app — Log Movement, Public Form, Staff Master, and more. One item per line.
-        </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
-          {lists.map(list=>(
-            <div key={list.key} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:14 }}>
-              <div style={{ fontWeight:700, fontSize:13, color:"#0D1B3E", marginBottom:6 }}>{list.label}</div>
-              {savedKey===list.key && <div style={{ background:"#dcfce7", color:"#166534", borderRadius:4, padding:"2px 8px", fontSize:11, marginBottom:6, display:"inline-block" }}>Saved</div>}
-              <textarea
-                value={drafts[list.key]}
-                onChange={e=>setDrafts(d=>({...d,[list.key]:e.target.value}))}
-                rows={6}
-                placeholder={list.ph}
-                style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13, resize:"vertical", fontFamily:"inherit" }}
-              />
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
-                <span style={{ fontSize:11, color:"#9ca3af" }}>{drafts[list.key].split(SEP).filter(x=>x.trim()).length} items</span>
-                <button onClick={()=>saveList(list.key)} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:6, padding:"6px 14px", fontWeight:700, fontSize:12, cursor:"pointer" }}>Save</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  // Lists actions
+  function saveList(key) {
+    const values = listDrafts[key].split("\n").map(x=>x.trim()).filter(Boolean);
+    const updated = { ...s, [key]: values };
+    setSetup(updated); save(SK.SETUP, updated);
+    setSavedListKey(key); setTimeout(()=>setSavedListKey(""), 2000);
   }
 
-  // ── SAP SNAPSHOTS ──────────────────────────────────────────────────────────
-  function SapTab() {
-    const [snapForm, setSnapForm] = useState({ month: new Date().toISOString().slice(0,7), itemId:"", sapStock:0, sapGit:0, sapDemo:0 });
-    async function addSnapshot() {
-      if (!snapForm.itemId || !snapForm.month) { alert("Month and Item required."); return; }
-      const existing = sapSnapshots.find(s=>s.month===snapForm.month&&s.itemId===snapForm.itemId);
-      let updated;
-      if (existing) updated = sapSnapshots.map(s=>s.month===snapForm.month&&s.itemId===snapForm.itemId?{...s,...snapForm,sapStock:Number(snapForm.sapStock),sapGit:Number(snapForm.sapGit),sapDemo:Number(snapForm.sapDemo)}:s);
-      else updated = [...sapSnapshots,{...snapForm,id:Date.now(),sapStock:Number(snapForm.sapStock),sapGit:Number(snapForm.sapGit),sapDemo:Number(snapForm.sapDemo)}];
-      setSapSnapshots(updated); await save(SK.SAP, updated);
-    }
-    async function delSnapshot(id) {
-      const updated = sapSnapshots.filter(s=>s.id!==id);
-      setSapSnapshots(updated); await save(SK.SAP, updated);
-    }
-    return (
-      <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
-          <SectionHead title="Add / Update SAP Snapshot" />
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10, marginBottom:12 }}>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Month</label>
-              <input type="month" value={snapForm.month} onChange={e=>setSnapForm(f=>({...f,month:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Item</label>
-              <select value={snapForm.itemId} onChange={e=>setSnapForm(f=>({...f,itemId:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }}>
-                <option value="">— Select —</option>
-                {(itemMaster||DEFAULT_ITEMS).filter(i=>i.active!==false).map(i=><option key={i.id} value={i.id}>[{i.sapCode}] {i.name}</option>)}
-              </select>
-            </div>
-            {[["SAP Stock","sapStock"],["SAP GIT","sapGit"],["SAP Demo","sapDemo"]].map(([lbl,key])=>(
-              <div key={key}>
-                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>{lbl}</label>
-                <input type="number" min="0" value={snapForm[key]} onChange={e=>setSnapForm(f=>({...f,[key]:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
-              </div>
-            ))}
-          </div>
-          <button onClick={addSnapshot} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"9px 22px", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save Snapshot</button>
-        </div>
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, overflow:"auto" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
-            <thead style={{ background:"#0D1B3E" }}><tr>{["Month","Item","SAP Stock","SAP GIT","SAP Demo",""].map(h=><th key={h} style={{ padding:"9px 12px", textAlign:"left", color:"#C8EEF5", fontWeight:600, fontSize:11 }}>{h}</th>)}</tr></thead>
-            <tbody>
-              {sapSnapshots.length===0&&<tr><td colSpan={6} style={{ padding:24, textAlign:"center", color:"#9ca3af" }}>No snapshots yet. Import via Import SAP tab or add manually above.</td></tr>}
-              {sapSnapshots.map(snap=>(
-                <tr key={snap.id} style={{ borderTop:"1px solid #f3f4f6" }}>
-                  <td style={{ padding:"8px 12px", fontWeight:600 }}>{snap.month}</td>
-                  <td style={{ padding:"8px 12px" }}>{getItemName(snap.itemId)}</td>
-                  <td style={{ padding:"8px 12px" }}>{snap.sapStock||0}</td>
-                  <td style={{ padding:"8px 12px" }}>{snap.sapGit||0}</td>
-                  <td style={{ padding:"8px 12px" }}>{snap.sapDemo||0}</td>
-                  <td style={{ padding:"8px 12px" }}><button onClick={()=>delSnapshot(snap.id)} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Delete</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
+  // SAP actions
+  async function addSnapshot() {
+    if (!snapForm.itemId || !snapForm.month) { alert("Month and Item required."); return; }
+    const exists = sapSnapshots.find(x => x.month===snapForm.month && x.itemId===snapForm.itemId);
+    let updated;
+    if (exists) updated = sapSnapshots.map(x => x.month===snapForm.month && x.itemId===snapForm.itemId ? {...x,...snapForm,sapStock:Number(snapForm.sapStock),sapGit:Number(snapForm.sapGit),sapDemo:Number(snapForm.sapDemo)} : x);
+    else updated = [...sapSnapshots, {...snapForm, id:Date.now(), sapStock:Number(snapForm.sapStock), sapGit:Number(snapForm.sapGit), sapDemo:Number(snapForm.sapDemo)}];
+    setSapSnapshots(updated); await save(SK.SAP, updated);
+  }
+  async function delSnapshot(id) {
+    const updated = sapSnapshots.filter(x => x.id !== id);
+    setSapSnapshots(updated); await save(SK.SAP, updated);
   }
 
-  // ── MONTH LOCK ─────────────────────────────────────────────────────────────
-  function LockTab() {
-    async function toggleLock(month) {
-      const updated = (lockedMonths||[]).includes(month) ? (lockedMonths||[]).filter(m=>m!==month) : [...(lockedMonths||[]),month];
-      setLockedMonths(updated); await save(SK.LOCK, updated);
-    }
-    const months = Array.from({length:12},(_,i)=>{ const d=new Date(); d.setMonth(d.getMonth()-i); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); });
-    return (
-      <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
-        <SectionHead title="Month Lock" />
-        <div style={{ fontSize:13, color:"#6b7280", marginBottom:14 }}>Locked months prevent new movements from being logged. SAP Import is always exempt.</div>
-        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-          {months.map(m=>{
-            const locked=(lockedMonths||[]).includes(m);
-            return (
-              <button key={m} onClick={()=>toggleLock(m)} style={{ padding:"10px 18px", borderRadius:8, border:"2px solid "+(locked?"#dc2626":"#e5e7eb"), background:locked?"#fee2e2":"#fff", color:locked?"#dc2626":"#374151", fontWeight:600, fontSize:13, cursor:"pointer" }}>
-                {m}{locked?" 🔒":""}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
+  // Lock actions
+  async function toggleLock(month) {
+    const updated = (lockedMonths||[]).includes(month)
+      ? (lockedMonths||[]).filter(m => m !== month)
+      : [...(lockedMonths||[]), month];
+    setLockedMonths(updated); await save(SK.LOCK, updated);
   }
 
-  // ── BACKUP & RESTORE ───────────────────────────────────────────────────────
-  function BackupTab() {
-    const [backupDone, setBackupDone] = useState(false);
-    const [restoreStatus, setRestoreStatus] = useState("idle");
-    const [restorePreview, setRestorePreview] = useState(null);
-    const [errorMsg, setErrorMsg] = useState("");
-
-    function doBackup() {
-      const payload = {
-        exportedAt: new Date().toISOString(),
-        appVersion: "FleetTrack Pro",
-        exportedBy: currentUser?.name || "Admin",
-        data: {
-          movements: movements||[], personnel: personnel||[], sapSnapshots: sapSnapshots||[],
-          gitItems: gitItems||[], fleetUnits: fleetUnits||[], versions: versions||[], lockedMonths: lockedMonths||[]
-        }
-      };
-      const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href=url; a.download="FleetTrack_Backup_"+today()+".json"; a.click();
-      URL.revokeObjectURL(url);
-      setBackupDone(true); setTimeout(()=>setBackupDone(false), 3000);
-    }
-
-    function handleRestoreFile(e) {
-      if (!isSuperAdmin) { alert("Only Super Admin can restore data."); return; }
-      const file = e.target.files[0]; if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        try { const d = JSON.parse(ev.target.result); setRestorePreview(d); setRestoreStatus("preview"); }
-        catch(err) { setErrorMsg("Invalid backup file: "+err.message); setRestoreStatus("error"); }
-      };
-      reader.readAsText(file);
-    }
-
-    async function confirmRestore() {
-      if (!isSuperAdmin || !restorePreview) return;
-      const d = restorePreview.data || restorePreview;
-      if (d.movements)    { setMovements(d.movements);        await save(SK.MOV,   d.movements); }
-      if (d.personnel)    { setPersonnel(d.personnel);        await save(SK.PERS,  d.personnel); }
-      if (d.sapSnapshots) { setSapSnapshots(d.sapSnapshots);  await save(SK.SAP,   d.sapSnapshots); }
-      if (d.gitItems)     { setGitItems(d.gitItems);          await save(SK.GIT,   d.gitItems); }
-      if (d.fleetUnits)   { setFleetUnits(d.fleetUnits);      await save(SK.FLEET, d.fleetUnits); }
-      if (d.versions)     { setVersions(d.versions);          await save(VERSION_KEY, d.versions); }
-      if (d.lockedMonths) { setLockedMonths(d.lockedMonths);  await save(SK.LOCK,  d.lockedMonths); }
-      setRestoreStatus("done"); setRestorePreview(null);
-    }
-
-    return (
-      <div style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:680 }}>
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:20 }}>
-          <SectionHead title="Download Backup" />
-          <div style={{ fontSize:13, color:"#6b7280", marginBottom:14 }}>Exports all movements, staff, fleet units, GIT records, and settings as a JSON file. Available to Logistics Admin and above.</div>
-          <button onClick={doBackup} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"12px 28px", fontWeight:700, fontSize:14, cursor:"pointer" }}>
-            Download Backup
-          </button>
-          {backupDone && <div style={{ marginTop:10, color:"#16a34a", fontWeight:600, fontSize:13 }}>Backup downloaded successfully.</div>}
-        </div>
-
-        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:20 }}>
-          <SectionHead title="Restore from Backup" />
-          {!isSuperAdmin ? (
-            <div style={{ background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, padding:"12px 16px", fontSize:13, color:"#92400e", fontWeight:500 }}>
-              Restore is restricted to Super Admin only. Logistics Admin can download backups but cannot restore. Contact your Super Admin to restore data.
-            </div>
-          ) : (
-            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              <div style={{ background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#991b1b" }}>
-                Warning: Restoring will overwrite ALL current data. Download a fresh backup first.
-              </div>
-              <div>
-                <label style={{ fontSize:12, fontWeight:600, color:"#374151", display:"block", marginBottom:6 }}>Select Backup File (.json)</label>
-                <input type="file" accept=".json" onChange={handleRestoreFile} style={{ fontSize:13 }} />
-              </div>
-              {restoreStatus==="error" && <div style={{ background:"#fee2e2", color:"#991b1b", borderRadius:8, padding:10, fontSize:13 }}>{errorMsg}</div>}
-              {restoreStatus==="done"  && <div style={{ background:"#dcfce7", color:"#166534", borderRadius:8, padding:10, fontSize:13, fontWeight:600 }}>Data restored successfully.</div>}
-              {restoreStatus==="preview" && restorePreview && (
-                <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:10, padding:16 }}>
-                  <div style={{ fontWeight:700, color:"#0369a1", marginBottom:10 }}>Backup Preview</div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
-                    {[
-                      ["Exported",restorePreview.exportedAt?new Date(restorePreview.exportedAt).toLocaleString():"Unknown"],
-                      ["Exported By",restorePreview.exportedBy||"Unknown"],
-                      ["Movements",(restorePreview.data?.movements||[]).length+" records"],
-                      ["Staff",(restorePreview.data?.personnel||[]).length+" records"],
-                      ["Fleet Units",(restorePreview.data?.fleetUnits||[]).length+" units"],
-                      ["GIT Items",(restorePreview.data?.gitItems||[]).length+" records"],
-                    ].map(([lbl,val])=>(
-                      <div key={lbl} style={{ background:"#fff", borderRadius:6, padding:"8px 12px", border:"1px solid #e0f2fe" }}>
-                        <div style={{ fontSize:10, color:"#0369a1", fontWeight:600, marginBottom:2 }}>{lbl}</div>
-                        <div style={{ fontSize:13, fontWeight:600, color:"#0D1B3E" }}>{val}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display:"flex", gap:10 }}>
-                    <button onClick={confirmRestore} style={{ background:"#dc2626", color:"#fff", border:"none", borderRadius:8, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer" }}>
-                      Confirm Restore (Overwrites All Data)
-                    </button>
-                    <button onClick={()=>{ setRestoreStatus("idle"); setRestorePreview(null); }} style={{ background:"#f3f4f6", color:"#374151", border:"none", borderRadius:8, padding:"10px 20px", fontWeight:600, fontSize:13, cursor:"pointer" }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  // Backup actions
+  function doBackup() {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      appVersion: "FleetTrack Pro",
+      exportedBy: currentUser ? currentUser.name : "Admin",
+      data: { movements:movements||[], personnel:personnel||[], sapSnapshots:sapSnapshots||[],
+              gitItems:gitItems||[], fleetUnits:fleetUnits||[], versions:versions||[], lockedMonths:lockedMonths||[] }
+    };
+    const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="FleetTrack_Backup_"+today()+".json"; a.click();
+    URL.revokeObjectURL(url);
+    setBackupDone(true); setTimeout(()=>setBackupDone(false), 3000);
+  }
+  function handleRestoreFile(e) {
+    if (!isSuperAdmin) { alert("Only Super Admin can restore."); return; }
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try { const d = JSON.parse(ev.target.result); setRestorePreview(d); setRestoreStatus("preview"); }
+      catch(err) { setRestoreError("Invalid file: "+err.message); setRestoreStatus("error"); }
+    };
+    reader.readAsText(file);
+  }
+  async function confirmRestore() {
+    if (!isSuperAdmin || !restorePreview) return;
+    const d = restorePreview.data || restorePreview;
+    if (d.movements)    { setMovements(d.movements);        await save(SK.MOV,   d.movements); }
+    if (d.personnel)    { setPersonnel(d.personnel);        await save(SK.PERS,  d.personnel); }
+    if (d.sapSnapshots) { setSapSnapshots(d.sapSnapshots);  await save(SK.SAP,   d.sapSnapshots); }
+    if (d.gitItems)     { setGitItems(d.gitItems);          await save(SK.GIT,   d.gitItems); }
+    if (d.fleetUnits)   { setFleetUnits(d.fleetUnits);      await save(SK.FLEET, d.fleetUnits); }
+    if (d.versions)     { setVersions(d.versions);          await save(VERSION_KEY, d.versions); }
+    if (d.lockedMonths) { setLockedMonths(d.lockedMonths);  await save(SK.LOCK,  d.lockedMonths); }
+    setRestoreStatus("done"); setRestorePreview(null);
   }
 
   const tabs = [
-    ["staff",     "👥 Staff Master"],
-    ["items",     "📦 Item Master"],
-    ["customers", "🏢 Customer Master"],
-    ["lists",     "📋 Dropdown Lists"],
-    ["sap",       "📊 SAP Snapshots"],
-    ["lock",      "🔒 Month Lock"],
-    ["backup",    "💾 Backup & Restore"],
+    ["staff","👥 Staff Master"],["items","📦 Item Master"],["customers","🏢 Customer Master"],
+    ["lists","📋 Dropdown Lists"],["sap","📊 SAP Snapshots"],["lock","🔒 Month Lock"],["backup","💾 Backup & Restore"]
   ];
+
+  const months = Array.from({length:12},(_,i)=>{ const d=new Date(); d.setMonth(d.getMonth()-i); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); });
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       <div style={{ background:"linear-gradient(135deg,#0D1B3E,#1a3a6b)", borderRadius:10, padding:"14px 20px" }}>
         <div style={{ color:"#fff", fontWeight:700, fontSize:16 }}>Admin Panel</div>
-        <div style={{ color:"#C8EEF5", fontSize:12, marginTop:2 }}>Master data, settings and backup — accessible to Logistics Admin and above</div>
+        <div style={{ color:"#C8EEF5", fontSize:12, marginTop:2 }}>Master data, settings and backup</div>
       </div>
       <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
         {tabs.map(([val,lbl])=>(
@@ -1947,18 +1670,266 @@ function Admin({ movements, setMovements, personnel, setPersonnel, sapSnapshots,
           </button>
         ))}
       </div>
-      {tab==="staff"     && <StaffTab />}
-      {tab==="items"     && <ItemMasterSetup itemMaster={itemMaster} setItemMaster={setItemMaster} />}
+
+      {/* ── STAFF MASTER ── */}
+      {tab==="staff" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
+            <SectionHead title="Add Staff Member" />
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:10, marginBottom:12 }}>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Full Name *</label>
+                <input value={newP.name} onChange={e=>setNewP(p=>({...p,name:e.target.value}))} placeholder="e.g. Ahmad Faisal" style={SEL} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Role</label>
+                <select value={newP.role||""} onChange={e=>setNewP(p=>({...p,role:e.target.value}))} style={SEL}>
+                  <option value="">— Role —</option>
+                  {roles.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Entity</label>
+                <select value={newP.entity||""} onChange={e=>setNewP(p=>({...p,entity:e.target.value}))} style={SEL}>
+                  <option value="">— Entity —</option>
+                  {entities.map(e=><option key={e} value={e}>{e}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Region</label>
+                <select value={newP.region||""} onChange={e=>setNewP(p=>({...p,region:e.target.value}))} style={SEL}>
+                  <option value="">— Region —</option>
+                  {regions.map(r=><option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Email</label>
+                <input type="email" value={newP.email||""} onChange={e=>setNewP(p=>({...p,email:e.target.value}))} placeholder="name@company.com" style={SEL} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Phone</label>
+                <input value={newP.phone||""} onChange={e=>setNewP(p=>({...p,phone:e.target.value}))} placeholder="+60 12-345 6789" style={SEL} />
+              </div>
+            </div>
+            <button onClick={addStaff} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+              + Add Staff
+            </button>
+          </div>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, overflow:"hidden" }}>
+            <div style={{ padding:"10px 14px", borderBottom:"1px solid #f3f4f6", display:"flex", gap:10, alignItems:"center" }}>
+              <input value={staffSearch} onChange={e=>setStaffSearch(e.target.value)} placeholder="Search name, role, entity..." style={{ flex:1, border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13 }} />
+              <span style={{ fontSize:12, color:"#9ca3af", whiteSpace:"nowrap" }}>{filteredStaff.length} / {personnel.length}</span>
+            </div>
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13, minWidth:700 }}>
+                <thead style={{ background:"#0D1B3E" }}>
+                  <tr>{["Name","Role","Entity","Region","Email","Phone","Status",""].map(h=><th key={h} style={{ padding:"9px 12px", textAlign:"left", color:"#C8EEF5", fontWeight:600, fontSize:11, whiteSpace:"nowrap" }}>{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {filteredStaff.length===0 && <tr><td colSpan={8} style={{ padding:28, textAlign:"center", color:"#9ca3af" }}>No staff yet. Add using the form above.</td></tr>}
+                  {filteredStaff.map(p=>(
+                    <tr key={p.id} style={{ borderTop:"1px solid #f3f4f6", background:p.active===false?"#fafafa":"#fff" }}>
+                      {editId===p.id ? (
+                        <>
+                          <td style={{ padding:"6px 8px" }}><input value={editData.name!==undefined?editData.name:p.name} onChange={e=>setEditData(d=>({...d,name:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
+                          <td style={{ padding:"6px 8px" }}><select value={editData.role!==undefined?editData.role:p.role||""} onChange={e=>setEditData(d=>({...d,role:e.target.value}))} style={SEL}><option value="">— Role —</option>{roles.map(r=><option key={r} value={r}>{r}</option>)}</select></td>
+                          <td style={{ padding:"6px 8px" }}><select value={editData.entity!==undefined?editData.entity:p.entity||""} onChange={e=>setEditData(d=>({...d,entity:e.target.value}))} style={SEL}><option value="">— Entity —</option>{entities.map(e=><option key={e} value={e}>{e}</option>)}</select></td>
+                          <td style={{ padding:"6px 8px" }}><select value={editData.region!==undefined?editData.region:p.region||""} onChange={e=>setEditData(d=>({...d,region:e.target.value}))} style={SEL}><option value="">— Region —</option>{regions.map(r=><option key={r} value={r}>{r}</option>)}</select></td>
+                          <td style={{ padding:"6px 8px" }}><input type="email" value={editData.email!==undefined?editData.email:p.email||""} onChange={e=>setEditData(d=>({...d,email:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
+                          <td style={{ padding:"6px 8px" }}><input value={editData.phone!==undefined?editData.phone:p.phone||""} onChange={e=>setEditData(d=>({...d,phone:e.target.value}))} style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:4, padding:"5px 8px", fontSize:12 }} /></td>
+                          <td style={{ padding:"6px 8px" }}><Badge label={p.active===false?"Inactive":"Active"} bg={p.active===false?"#9ca3af":"#16a34a"} /></td>
+                          <td style={{ padding:"6px 8px" }}>
+                            <div style={{ display:"flex", gap:4 }}>
+                              <button onClick={()=>saveEdit(p.id)} style={{ background:"#16a34a", color:"#fff", border:"none", borderRadius:4, padding:"4px 10px", fontSize:12, cursor:"pointer", fontWeight:600 }}>Save</button>
+                              <button onClick={()=>setEditId(null)} style={{ background:"#f3f4f6", color:"#374151", border:"none", borderRadius:4, padding:"4px 8px", fontSize:12, cursor:"pointer" }}>Cancel</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding:"8px 12px", fontWeight:600, color:p.active===false?"#9ca3af":"#0D1B3E" }}>{p.name}</td>
+                          <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.role||"—"}</td>
+                          <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.entity||"—"}</td>
+                          <td style={{ padding:"8px 12px", color:"#6b7280" }}>{p.region||"—"}</td>
+                          <td style={{ padding:"8px 12px", color:"#6b7280", fontSize:11 }}>{p.email||"—"}</td>
+                          <td style={{ padding:"8px 12px", color:"#6b7280", fontSize:11 }}>{p.phone||"—"}</td>
+                          <td style={{ padding:"8px 12px" }}><Badge label={p.active===false?"Inactive":"Active"} bg={p.active===false?"#9ca3af":"#16a34a"} /></td>
+                          <td style={{ padding:"8px 12px" }}>
+                            <div style={{ display:"flex", gap:4 }}>
+                              <button onClick={()=>{ setEditId(p.id); setEditData({...p}); }} style={{ background:"#f0f9ff", color:"#0369a1", border:"1px solid #bae6fd", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Edit</button>
+                              <button onClick={()=>toggleActive(p.id)} style={{ background:p.active===false?"#dcfce7":"#fff7ed", color:p.active===false?"#16a34a":"#d97706", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>{p.active===false?"Activate":"Deactivate"}</button>
+                              <button onClick={()=>removePerson(p.id)} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Remove</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ITEM MASTER ── */}
+      {tab==="items" && <ItemMasterSetup itemMaster={itemMaster} setItemMaster={setItemMaster} />}
+
+      {/* ── CUSTOMER MASTER ── */}
       {tab==="customers" && <CustomerMasterSetup customers={customers} setCustomers={setCustomers} />}
-      {tab==="lists"     && <ListsTab />}
-      {tab==="sap"       && <SapTab />}
-      {tab==="lock"      && <LockTab />}
-      {tab==="backup"    && <BackupTab />}
+
+      {/* ── DROPDOWN LISTS ── */}
+      {tab==="lists" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#0369a1" }}>
+            These lists power all dropdowns across the app. One item per line.
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
+            {[["entities","Entities / Divisions"],["regions","Regions / Offices"],["roles","Staff Roles"],["remarks","Remarks / Status Labels"]].map(([key,label])=>(
+              <div key={key} style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:14 }}>
+                <div style={{ fontWeight:700, fontSize:13, color:"#0D1B3E", marginBottom:6 }}>{label}</div>
+                {savedListKey===key && <div style={{ background:"#dcfce7", color:"#166534", borderRadius:4, padding:"2px 8px", fontSize:11, marginBottom:6, display:"inline-block" }}>Saved</div>}
+                <textarea value={listDrafts[key]} onChange={e=>setListDrafts(d=>({...d,[key]:e.target.value}))} rows={6}
+                  style={{ width:"100%", border:"1px solid #d1d5db", borderRadius:6, padding:"7px 10px", fontSize:13, resize:"vertical", fontFamily:"inherit" }} />
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:8 }}>
+                  <span style={{ fontSize:11, color:"#9ca3af" }}>{listDrafts[key].split("\n").filter(x=>x.trim()).length} items</span>
+                  <button onClick={()=>saveList(key)} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:6, padding:"6px 14px", fontWeight:700, fontSize:12, cursor:"pointer" }}>Save</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── SAP SNAPSHOTS ── */}
+      {tab==="sap" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
+            <SectionHead title="Add / Update SAP Snapshot" />
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:10, marginBottom:12 }}>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Month</label>
+                <input type="month" value={snapForm.month} onChange={e=>setSnapForm(f=>({...f,month:e.target.value}))} style={SEL} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>Item</label>
+                <select value={snapForm.itemId} onChange={e=>setSnapForm(f=>({...f,itemId:e.target.value}))} style={SEL}>
+                  <option value="">— Select —</option>
+                  {(itemMaster||DEFAULT_ITEMS).filter(i=>i.active!==false).map(i=><option key={i.id} value={i.id}>[{i.sapCode}] {i.name}</option>)}
+                </select>
+              </div>
+              {[["SAP Stock","sapStock"],["SAP GIT","sapGit"],["SAP Demo","sapDemo"]].map(([lbl,key])=>(
+                <div key={key}>
+                  <label style={{ fontSize:11, fontWeight:600, color:"#374151", display:"block", marginBottom:3 }}>{lbl}</label>
+                  <input type="number" min="0" value={snapForm[key]} onChange={e=>setSnapForm(f=>({...f,[key]:e.target.value}))} style={SEL} />
+                </div>
+              ))}
+            </div>
+            <button onClick={addSnapshot} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"9px 22px", fontWeight:700, fontSize:13, cursor:"pointer" }}>Save Snapshot</button>
+          </div>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, overflow:"auto" }}>
+            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:13 }}>
+              <thead style={{ background:"#0D1B3E" }}><tr>{["Month","Item","SAP Stock","SAP GIT","SAP Demo",""].map(h=><th key={h} style={{ padding:"9px 12px", textAlign:"left", color:"#C8EEF5", fontWeight:600, fontSize:11 }}>{h}</th>)}</tr></thead>
+              <tbody>
+                {sapSnapshots.length===0 && <tr><td colSpan={6} style={{ padding:24, textAlign:"center", color:"#9ca3af" }}>No snapshots. Import via Import SAP or add manually above.</td></tr>}
+                {sapSnapshots.map(snap=>(
+                  <tr key={snap.id} style={{ borderTop:"1px solid #f3f4f6" }}>
+                    <td style={{ padding:"8px 12px", fontWeight:600 }}>{snap.month}</td>
+                    <td style={{ padding:"8px 12px" }}>{getItemName(snap.itemId)}</td>
+                    <td style={{ padding:"8px 12px" }}>{snap.sapStock||0}</td>
+                    <td style={{ padding:"8px 12px" }}>{snap.sapGit||0}</td>
+                    <td style={{ padding:"8px 12px" }}>{snap.sapDemo||0}</td>
+                    <td style={{ padding:"8px 12px" }}><button onClick={()=>delSnapshot(snap.id)} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:4, padding:"3px 8px", fontSize:11, cursor:"pointer" }}>Delete</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── MONTH LOCK ── */}
+      {tab==="lock" && (
+        <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:16 }}>
+          <SectionHead title="Month Lock" />
+          <div style={{ fontSize:13, color:"#6b7280", marginBottom:14 }}>Locked months prevent new movements. SAP Import is always exempt.</div>
+          <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+            {months.map(m=>{
+              const locked=(lockedMonths||[]).includes(m);
+              return (
+                <button key={m} onClick={()=>toggleLock(m)} style={{ padding:"10px 18px", borderRadius:8, border:"2px solid "+(locked?"#dc2626":"#e5e7eb"), background:locked?"#fee2e2":"#fff", color:locked?"#dc2626":"#374151", fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                  {m}{locked?" 🔒":""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── BACKUP & RESTORE ── */}
+      {tab==="backup" && (
+        <div style={{ display:"flex", flexDirection:"column", gap:20, maxWidth:680 }}>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:20 }}>
+            <SectionHead title="Download Backup" />
+            <div style={{ fontSize:13, color:"#6b7280", marginBottom:14 }}>Exports all data as a JSON file. Available to all admins.</div>
+            <button onClick={doBackup} style={{ background:"#0D1B3E", color:"#fff", border:"none", borderRadius:8, padding:"12px 28px", fontWeight:700, fontSize:14, cursor:"pointer" }}>
+              Download Backup
+            </button>
+            {backupDone && <div style={{ marginTop:10, color:"#16a34a", fontWeight:600, fontSize:13 }}>Backup downloaded successfully.</div>}
+          </div>
+          <div style={{ background:"#fff", border:"1px solid #e5e7eb", borderRadius:10, padding:20 }}>
+            <SectionHead title="Restore from Backup" />
+            {!isSuperAdmin ? (
+              <div style={{ background:"#fef3c7", border:"1px solid #fbbf24", borderRadius:8, padding:"12px 16px", fontSize:13, color:"#92400e", fontWeight:500 }}>
+                Restore is restricted to Super Admin only. Logistics Admin can download backups but cannot restore.
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                <div style={{ background:"#fee2e2", border:"1px solid #fca5a5", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#991b1b" }}>
+                  Warning: Restoring will overwrite ALL current data. Download a backup first.
+                </div>
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:"#374151", display:"block", marginBottom:6 }}>Select Backup File (.json)</label>
+                  <input type="file" accept=".json" onChange={handleRestoreFile} style={{ fontSize:13 }} />
+                </div>
+                {restoreStatus==="error" && <div style={{ background:"#fee2e2", color:"#991b1b", borderRadius:8, padding:10, fontSize:13 }}>{restoreError}</div>}
+                {restoreStatus==="done"  && <div style={{ background:"#dcfce7", color:"#166534", borderRadius:8, padding:10, fontSize:13, fontWeight:600 }}>Data restored successfully.</div>}
+                {restoreStatus==="preview" && restorePreview && (
+                  <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:10, padding:16 }}>
+                    <div style={{ fontWeight:700, color:"#0369a1", marginBottom:10 }}>Backup Preview</div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:14 }}>
+                      {[
+                        ["Exported",restorePreview.exportedAt ? new Date(restorePreview.exportedAt).toLocaleString() : "Unknown"],
+                        ["Exported By",restorePreview.exportedBy||"Unknown"],
+                        ["Movements",(restorePreview.data ? restorePreview.data.movements||[] : []).length+" records"],
+                        ["Staff",(restorePreview.data ? restorePreview.data.personnel||[] : []).length+" records"],
+                        ["Fleet Units",(restorePreview.data ? restorePreview.data.fleetUnits||[] : []).length+" units"],
+                        ["GIT Items",(restorePreview.data ? restorePreview.data.gitItems||[] : []).length+" records"],
+                      ].map(([lbl,val])=>(
+                        <div key={lbl} style={{ background:"#fff", borderRadius:6, padding:"8px 12px", border:"1px solid #e0f2fe" }}>
+                          <div style={{ fontSize:10, color:"#0369a1", fontWeight:600, marginBottom:2 }}>{lbl}</div>
+                          <div style={{ fontSize:13, fontWeight:600, color:"#0D1B3E" }}>{val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex", gap:10 }}>
+                      <button onClick={confirmRestore} style={{ background:"#dc2626", color:"#fff", border:"none", borderRadius:8, padding:"10px 24px", fontWeight:700, fontSize:13, cursor:"pointer" }}>
+                        Confirm Restore (Overwrites All Data)
+                      </button>
+                      <button onClick={()=>{ setRestoreStatus("idle"); setRestorePreview(null); }} style={{ background:"#f3f4f6", color:"#374151", border:"none", borderRadius:8, padding:"10px 20px", fontWeight:600, fontSize:13, cursor:"pointer" }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
 
 function SapImport({ sapSnapshots, setSapSnapshots, gitItems, setGitItems }) {
   const [status, setStatus] = useState("idle"); // idle | parsing | preview | done | error
